@@ -14,7 +14,8 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Rigid-ish bone body state with linear/angular velocity, force accumulation, local diagonal inverse inertia and quaternion orientation integration.
 - XPBD-style ball-anchor constraints between world-space bone bodies, with compliance and angular correction.
 - Bone solver that integrates muscle forces, body motion and joint constraints without allocating during each solve step.
-- Eight deterministic test executables covering the physics foundations and solver.
+- Lightweight tissue graph with XPBD distance links, compliance, damping, local impulses and radial ripple impulses.
+- Nine deterministic test executables covering the physics foundations, bone solver and tissue graph.
 
 ## Bone bodies and joints
 
@@ -23,6 +24,10 @@ The simulation layer treats each dynamic bone as a world-space body. The skeleto
 BoneJoint currently constrains two local anchor points to the same world position using an XPBD-style compliance term. It corrects both translation and rotation, allowing a joint to resist anchor drift without relying on very stiff penalty springs. It is currently a ball-anchor constraint: hinge axes, angular limits, motors and collision contacts are later additions. The body model uses diagonal local inertia, so it is intentionally a lightweight approximation rather than a general rigid-body engine.
 
 BoneSolver applies gravity and accumulated forces, integrates bodies, then iterates joint constraints. Muscle attachment force pairs can be passed into the solver so muscle contraction can drive bone motion. Use the FixedStepClock to call step at a stable fixed interval; the solver does not own a frame clock.
+
+## Tissue ripple graph
+
+`TissueGraph` is a small, pre-sized point-and-link network for soft tissue. Each node stores position, velocity, inverse mass and force; each link stores rest length, compliance and damping. XPBD distance constraints distribute a disturbance through neighboring nodes, while damping removes energy over time. A local or radial impulse can start a ripple. Nodes with zero inverse mass act as fixed attachments. The graph does not create or simulate a triangle mesh, perform collisions, or provide a volumetric soft body; it is a lightweight motion layer intended to drive selected tissue points or later mesh deformation. Pre-size nodes and links before stepping to avoid runtime allocation.
 
 ## Bone-driven geometry
 
@@ -40,10 +45,9 @@ Run CMake configure, build the project, then run CTest with output-on-failure. T
 
 1. Add hinge and ball-socket joint modes, angular limits and joint motors.
 2. Add antagonistic muscle groups and joint stabilization.
-3. Build a graph-based XPBD tissue layer for soft-tissue motion and damped ripple propagation.
-4. Add shape-matching and volume-preserving soft-tissue clusters for selected high-detail areas.
+3. Connect tissue graph nodes to bone attachments and skinned mesh control points.
+4. Add optional shape-matching and volume-preserving clusters for selected high-detail areas.
 5. Add collision detection and contact solving, then optional self-collision.
-6. Connect simulated world poses to skinning and runtime mesh upload.
-7. Profile representative rigs and benchmark on the Galaxy A05 before setting performance claims.
+6. Profile representative rigs and benchmark on the Galaxy A05 before setting performance claims.
 
 Performance targets must be verified on actual devices; no Galaxy A05 benchmark has been run yet.
