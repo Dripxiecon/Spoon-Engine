@@ -20,6 +20,18 @@ int main() {
     assert(g.nodes[3].position.z>0.5f);
     assert(g.nodes[0].position.length_squared()==0.0f);
     assert(g.nodes[1].position.x==1.0f && g.nodes[2].position.y==1.0f);
+    TissueGraph inversion(4,0,1);
+    inversion.gravity={}; inversion.constraint_iterations=16;
+    inversion.nodes[0].position={0,0,0}; inversion.nodes[1].position={1,0,0};
+    inversion.nodes[2].position={0,1,0}; inversion.nodes[3].position={0,0,0.5f};
+    inversion.nodes[0].inverse_mass=0; inversion.nodes[1].inverse_mass=0;
+    inversion.nodes[2].inverse_mass=0; inversion.nodes[3].inverse_mass=1;
+    inversion.nodes[3].velocity={0,0,-120.0f};
+    inversion.tetrahedra[0]={0,1,2,3,1.0f/12.0f,0.0f};
+    inversion.step(1.0f/120.0f);
+    assert(volume(inversion)>0.0f);
+    assert(volume(inversion)>=inversion.tetrahedra[0].rest_volume*0.049f);
+
     TissueGraph invalid(4,0,1);
     invalid.gravity={}; invalid.tetrahedra[0]={0,1,2,3,0.0f,0.0f};
     invalid.step(1.0f/120.0f);
