@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
+        android:name=".SpoonApplication"
         android:allowBackup="false"
         android:label="Spoon Physics Lab"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
