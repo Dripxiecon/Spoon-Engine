@@ -17,7 +17,7 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Lightweight tissue graph with XPBD distance links, topology-generated surface bend-distance constraints, signed-volume tetrahedron constraints, compliance, damping, local impulses and radial ripple impulses.
 - Bone-to-tissue bindings that make selected tissue nodes follow bone-local anchors and transmit anchor motion into neighboring tissue.
 - Tissue-to-skinning bridge that blends simulated tissue-node displacement into already-skinned mesh vertices.
-- Thirteen deterministic test executables covering the physics foundations, bone solver and tissue deformation pipeline.
+- Fourteen deterministic test executables covering the physics foundations, bone solver and tissue deformation pipeline.
 
 ## Bone bodies and joints
 
