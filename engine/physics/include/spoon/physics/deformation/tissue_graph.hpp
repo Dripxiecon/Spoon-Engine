@@ -48,7 +48,17 @@ struct TissueBendConstraint final {
     float compliance{0.001f};
     float accumulated_lambda{0.0f};
     bool enabled{true};
+    void reset() { accumulated_lambda = 0.0f; }
+};
 
+// Four-node hinge joining two consistently wound surface triangles.
+struct TissueDihedralConstraint final {
+    std::size_t edge_a{0}, edge_b{0};
+    std::size_t opposite_a{0}, opposite_b{0};
+    float rest_angle{0.0f};
+    float compliance{0.0005f};
+    float accumulated_lambda{0.0f};
+    bool enabled{true};
     void reset() { accumulated_lambda = 0.0f; }
 };
 
@@ -69,15 +79,17 @@ public:
     explicit TissueGraph(std::size_t node_count = 0,
                          std::size_t link_count = 0,
                          std::size_t tetrahedron_count = 0,
-                         std::size_t bend_count = 0)
+                         std::size_t bend_count = 0,
+                         std::size_t dihedral_count = 0)
         : nodes(node_count), links(link_count), tetrahedra(tetrahedron_count),
-          bends(bend_count),
+          bends(bend_count), dihedrals(dihedral_count),
           predicted_positions(node_count), previous_positions(node_count) {}
 
     std::vector<TissueNode> nodes;
     std::vector<TissueLink> links;
     std::vector<TissueTetrahedron> tetrahedra;
     std::vector<TissueBendConstraint> bends;
+    std::vector<TissueDihedralConstraint> dihedrals;
     Vec3 gravity{};
     int constraint_iterations{6};
 
@@ -129,10 +141,13 @@ public:
         for (TissueLink& link : links) link.reset();
         for (TissueTetrahedron& tetrahedron : tetrahedra) tetrahedron.reset();
         for (TissueBendConstraint& bend : bends) bend.reset();
+        for (TissueDihedralConstraint& hinge : dihedrals) hinge.reset();
         const int iterations = std::max(1, constraint_iterations);
         for (int iteration = 0; iteration < iterations; ++iteration) {
             for (TissueLink& link : links) solve_link(link, delta_time);
             for (TissueBendConstraint& bend : bends) solve_bend(bend, delta_time);
+            for (TissueDihedralConstraint& hinge : dihedrals)
+                solve_dihedral(hinge, delta_time);
             for (TissueTetrahedron& tetrahedron : tetrahedra) {
                 solve_tetrahedron_barrier(tetrahedron, delta_time);
                 solve_tetrahedron(tetrahedron, delta_time);
@@ -225,6 +240,65 @@ private:
         bend.accumulated_lambda += delta_lambda;
         predicted_positions[bend.node_a] -= direction * (weight_a * delta_lambda);
         predicted_positions[bend.node_b] += direction * (weight_b * delta_lambda);
+    }
+
+    void solve_dihedral(TissueDihedralConstraint& hinge, float delta_time) {
+        const std::size_t a=hinge.edge_a, b=hinge.edge_b;
+        const std::size_t c=hinge.opposite_a, d=hinge.opposite_b;
+        if (!hinge.enabled || a>=nodes.size() || b>=nodes.size() ||
+            c>=nodes.size() || d>=nodes.size() || a==b || a==c || a==d ||
+            b==c || b==d || c==d || !std::isfinite(hinge.rest_angle) ||
+            !std::isfinite(hinge.compliance) || hinge.compliance<0.0f) return;
+        const Vec3 pa=predicted_positions[a], pb=predicted_positions[b];
+        const Vec3 pc=predicted_positions[c], pd=predicted_positions[d];
+        const Vec3 edge=pb-pa;
+        const float edge2=edge.length_squared();
+        const Vec3 raw1=cross(edge,pc-pa);
+        const Vec3 raw2=cross(pd-pb,pa-pb);
+        const float n12=raw1.length_squared(), n22=raw2.length_squared();
+        if (!std::isfinite(edge2) || edge2<=1.0e-12f ||
+            !std::isfinite(n12) || !std::isfinite(n22) ||
+            n12<=1.0e-12f || n22<=1.0e-12f) return;
+        const float edge_length=std::sqrt(edge2);
+        const Vec3 n1=raw1/std::sqrt(n12), n2=raw2/std::sqrt(n22);
+        const Vec3 edge_dir=edge/edge_length;
+        const float sine=dot(edge_dir,cross(n1,n2));
+        const float cosine=std::clamp(dot(n1,n2),-1.0f,1.0f);
+        const float angle=std::atan2(sine,cosine);
+        const float pi=3.14159265358979323846f;
+        const float constraint=std::remainder(angle-hinge.rest_angle,2.0f*pi);
+
+        const Vec3 gc=raw1*(-edge_length/n12);
+        const Vec3 gd=raw2*( edge_length/n22);
+        const Vec3 ga=gc*(dot(pc-pb,edge)/edge2) +
+                      gd*(dot(pd-pb,edge)/edge2);
+        const Vec3 gb=gc*(-dot(pc-pa,edge)/edge2) +
+                      gd*(-dot(pd-pa,edge)/edge2);
+        const Vec3 gradients[4]={ga,gb,gc,gd};
+        const std::size_t ids[4]={a,b,c,d};
+        float weights[4]{};
+        float denominator=0.0f;
+        for (int i=0;i<4;++i) {
+            const TissueNode& node=nodes[ids[i]];
+            weights[i]=node.is_dynamic()?node.inverse_mass:0.0f;
+            denominator+=weights[i]*gradients[i].length_squared();
+        }
+        const float alpha=hinge.compliance/(delta_time*delta_time);
+        denominator+=alpha;
+        if (!std::isfinite(constraint) || !std::isfinite(denominator) ||
+            denominator<=1.0e-12f) return;
+        const float dl=(-constraint-alpha*hinge.accumulated_lambda)/denominator;
+        if (!std::isfinite(dl)) return;
+        hinge.accumulated_lambda+=dl;
+        for (int i=0;i<4;++i)
+            predicted_positions[ids[i]]+=gradients[i]*(weights[i]*dl);
+    }
+
+    static Vec3 cross(const Vec3& a, const Vec3& b) {
+        return {a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x};
+    }
+    static float dot(const Vec3& a, const Vec3& b) {
+        return a.x*b.x+a.y*b.y+a.z*b.z;
     }
 
     void solve_tetrahedron_barrier(TissueTetrahedron& t, float delta_time) {
