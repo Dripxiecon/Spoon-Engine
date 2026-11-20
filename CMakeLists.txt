@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(SpoonEnginePhysics VERSION 0.1.0 LANGUAGES CXX)
 
 option(SPOON_BUILD_TESTS "Build Spoon physics tests" ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_library(spoon_physics
     engine/physics/src/bone_spring.cpp
