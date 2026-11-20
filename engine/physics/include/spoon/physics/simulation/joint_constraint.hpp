@@ -2,7 +2,7 @@
 
 #include "spoon/physics/simulation/bone_body.hpp"
 
-#include <algorithm>
+#include <cstddef>
 #include <cmath>
 
 namespace spoon::physics {
@@ -53,7 +53,7 @@ struct BoneJoint final {
                 (-dot(error, axis) - alpha * (*lambda_components[i])) / denominator;
             *lambda_components[i] += delta_lambda;
             const Vec3 impulse = axis * delta_lambda;
-            apply_position_impulse(a, anchor_a, -impulse);
+            apply_position_impulse(a, anchor_a, impulse * -1.0f);
             apply_position_impulse(b, anchor_b, impulse);
         }
         return true;
