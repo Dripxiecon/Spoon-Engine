@@ -35,8 +35,10 @@ struct TissueTetrahedron final {
     float rest_volume{0.0f};
     float compliance{0.0f};
     float accumulated_lambda{0.0f};
+    float minimum_volume_ratio{0.05f};
+    float barrier_lambda{0.0f};
     bool enabled{true};
-    void reset() { accumulated_lambda = 0.0f; }
+    void reset() { accumulated_lambda = 0.0f; barrier_lambda = 0.0f; }
 };
 
 struct TissueLink final {
@@ -115,8 +117,10 @@ public:
         const int iterations = std::max(1, constraint_iterations);
         for (int iteration = 0; iteration < iterations; ++iteration) {
             for (TissueLink& link : links) solve_link(link, delta_time);
-            for (TissueTetrahedron& tetrahedron : tetrahedra)
+            for (TissueTetrahedron& tetrahedron : tetrahedra) {
+                solve_tetrahedron_barrier(tetrahedron, delta_time);
                 solve_tetrahedron(tetrahedron, delta_time);
+            }
         }
 
         for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -170,6 +174,62 @@ private:
             direction * (weight_b * delta_lambda);
     }
 
+
+
+    void solve_tetrahedron_barrier(TissueTetrahedron& t, float delta_time) {
+        if (!t.enabled || t.node_a >= nodes.size() || t.node_b >= nodes.size() ||
+            t.node_c >= nodes.size() || t.node_d >= nodes.size() ||
+            t.node_a == t.node_b || t.node_a == t.node_c ||
+            t.node_a == t.node_d || t.node_b == t.node_c ||
+            t.node_b == t.node_d || t.node_c == t.node_d ||
+            !std::isfinite(t.rest_volume) || t.rest_volume <= 1.0e-10f ||
+            !std::isfinite(t.minimum_volume_ratio) ||
+            t.minimum_volume_ratio < 0.0f || t.minimum_volume_ratio >= 1.0f ||
+            !std::isfinite(t.compliance) || t.compliance < 0.0f) return;
+
+        const std::size_t ids[4] = {t.node_a, t.node_b, t.node_c, t.node_d};
+        const Vec3 a = predicted_positions[ids[0]];
+        const Vec3 ab = predicted_positions[ids[1]] - a;
+        const Vec3 ac = predicted_positions[ids[2]] - a;
+        const Vec3 ad = predicted_positions[ids[3]] - a;
+        const Vec3 gb{
+            (ac.y*ad.z-ac.z*ad.y)/6.0f,
+            (ac.z*ad.x-ac.x*ad.z)/6.0f,
+            (ac.x*ad.y-ac.y*ad.x)/6.0f};
+        const Vec3 gc{
+            (ad.y*ab.z-ad.z*ab.y)/6.0f,
+            (ad.z*ab.x-ad.x*ab.z)/6.0f,
+            (ad.x*ab.y-ad.y*ab.x)/6.0f};
+        const Vec3 gd{
+            (ab.y*ac.z-ab.z*ac.y)/6.0f,
+            (ab.z*ac.x-ab.x*ac.z)/6.0f,
+            (ab.x*ac.y-ab.y*ac.x)/6.0f};
+        const Vec3 gradients[4] = {(gb+gc+gd)*-1.0f, gb, gc, gd};
+        const float volume = (ab.x*(ac.y*ad.z-ac.z*ad.y) +
+                              ab.y*(ac.z*ad.x-ac.x*ad.z) +
+                              ab.z*(ac.x*ad.y-ac.y*ad.x))/6.0f;
+        const float constraint = volume - t.rest_volume*t.minimum_volume_ratio;
+        if (!std::isfinite(constraint) || constraint >= 0.0f) return;
+
+        float weights[4]{};
+        float denominator = 0.0f;
+        for (int i=0; i<4; ++i) {
+            const TissueNode& node = nodes[ids[i]];
+            weights[i] = node.is_dynamic() ? node.inverse_mass : 0.0f;
+            denominator += weights[i]*gradients[i].length_squared();
+        }
+        const float alpha = t.compliance/(delta_time*delta_time);
+        denominator += alpha;
+        if (!std::isfinite(denominator) || denominator <= 1.0e-12f) return;
+        const float candidate = t.barrier_lambda +
+            (-constraint-alpha*t.barrier_lambda)/denominator;
+        if (!std::isfinite(candidate)) return;
+        const float next_lambda = std::max(0.0f, candidate);
+        const float delta_lambda = next_lambda-t.barrier_lambda;
+        t.barrier_lambda = next_lambda;
+        for (int i=0; i<4; ++i)
+            predicted_positions[ids[i]] += gradients[i]*(weights[i]*delta_lambda);
+    }
 
     void solve_tetrahedron(TissueTetrahedron& t, float delta_time) {
         if (!t.enabled || t.node_a >= nodes.size() || t.node_b >= nodes.size() ||
