@@ -10,6 +10,8 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Muscle activation dynamics, active force-length response, passive stretch resistance and damping.
 - Muscle shape response: contraction shortens the profile and can increase its radius to approximate volume preservation.
 - Fixed-step clock with a bounded substep count to prevent runaway catch-up after frame stalls.
+- Parent-child skeleton pose evaluation with cycle and invalid-index detection.
+- Bone-local muscle attachments that produce equal/opposite forces and pivot torques.
 - Separate deterministic test executables for the individual modules.
 
 ## Bone-driven geometry
@@ -18,7 +20,7 @@ Each skinned vertex can carry up to four bone influences. Every influence stores
 
 ## Muscle behavior
 
-`MuscleUnit` calculates active and passive tension between two attachment points. `MuscleGeometry` provides a cheap shape target for a muscle mesh, including configurable volume-preservation strength and a maximum bulge limit. The geometry helper does not itself simulate muscle fibers or solve a complete anatomical body.
+`MuscleUnit` calculates active and passive tension between two attachment points. `MuscleGeometry` provides a cheap shape target for a muscle mesh, including configurable volume-preservation strength and a maximum bulge limit. The geometry helper does not itself simulate muscle fibers or solve a complete anatomical body. `MuscleAttachment` binds each muscle endpoint to a bone-local point. `evaluate_muscle_attachment` converts muscle tension into force and torque values for a future body solver; it does not integrate those values into bone motion yet.
 
 ## Build and test
 
@@ -30,8 +32,8 @@ ctest --test-dir build --output-on-failure
 
 ## Next architecture steps
 
-1. Hierarchical bone graph and joint constraints.
-2. Muscle attachment integration into the bone solver, including antagonistic muscle groups.
+1. Joint constraints and a body solver that integrates attachment forces and torques.
+2. Antagonistic muscle groups and joint stabilization.
 3. XPBD constraints for stable soft tissue and tendon behavior.
 4. Tissue graph and ripple propagation with damping, material response and energy limits.
 5. Shape-matching and volume-preserving soft-body clusters.
