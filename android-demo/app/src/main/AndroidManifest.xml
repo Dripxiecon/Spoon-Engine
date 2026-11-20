@@ -4,7 +4,7 @@
         android:allowBackup="false"
         android:label="Spoon Physics Lab"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
-        <activity android:name=".GlProbeActivity" android:exported="false" />
+        <activity android:name=".GlProbeActivity" android:exported="false" />\n        <activity android:name=".NativeProbeActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize"
