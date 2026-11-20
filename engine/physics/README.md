@@ -16,7 +16,8 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Bone solver that integrates muscle forces, body motion and joint constraints without allocating during each solve step.
 - Lightweight tissue graph with XPBD distance links, compliance, damping, local impulses and radial ripple impulses.
 - Bone-to-tissue bindings that make selected tissue nodes follow bone-local anchors and transmit anchor motion into neighboring tissue.
-- Ten deterministic test executables covering the physics foundations, bone solver and tissue deformation bridge.
+- Tissue-to-skinning bridge that blends simulated tissue-node displacement into already-skinned mesh vertices.
+- Eleven deterministic test executables covering the physics foundations, bone solver and tissue deformation pipeline.
 
 ## Bone bodies and joints
 
@@ -29,6 +30,10 @@ BoneSolver applies gravity and accumulated forces, integrates bodies, then itera
 ## Tissue ripple graph
 
 `TissueGraph` is a small, pre-sized point-and-link network for soft tissue. Each node stores position, velocity, inverse mass and force; each link stores rest length, compliance and damping. XPBD distance constraints distribute a disturbance through neighboring nodes, while damping removes energy over time. A local or radial impulse can start a ripple. Nodes with zero inverse mass act as fixed attachments. The graph does not create or simulate a triangle mesh, perform collisions, or provide a volumetric soft body; it is a lightweight motion layer intended to drive selected tissue points or later mesh deformation. Pre-size nodes and links before stepping to avoid runtime allocation. `TissueBindingSet` connects graph nodes to bone-local anchor points. Update the bindings after bone poses are evaluated and before stepping the graph. Bound nodes become kinematic anchors, and their frame-to-frame velocity is retained so neighboring links can receive motion and produce ripples. For surface-like transverse ripples, links should form a 2D triangulated or otherwise non-collinear network; a perfectly straight chain of distance-only links does not provide first-order bending resistance.
+
+## Tissue-driven mesh deformation
+
+`TissueSkinningBridge` adds the displacement of one or more tissue graph nodes to vertices after ordinary bone skinning. Each binding stores a vertex index, tissue-node index, rest node position and blend weight. This keeps bone deformation and tissue motion in separate stages, preventing the same bone transform from being applied twice. The caller owns and pre-sizes the output buffer; after its first setup, the bridge performs no per-frame allocation.
 
 ## Bone-driven geometry
 
@@ -46,9 +51,9 @@ Run CMake configure, build the project, then run CTest with output-on-failure. T
 
 1. Add hinge and ball-socket joint modes, angular limits and joint motors.
 2. Add antagonistic muscle groups and joint stabilization.
-3. Map tissue graph nodes to skinned mesh control points and blend tissue displacement into vertex output.
-4. Add optional shape-matching and volume-preserving clusters for selected high-detail areas.
-5. Add collision detection and contact solving, then optional self-collision.
+3. Add optional shape-matching and volume-preserving clusters for selected high-detail areas.
+4. Add collision detection and contact solving, then optional self-collision.
+5. Add a small Android demo scene to visualize bone, muscle and tissue behavior.
 6. Profile representative rigs and benchmark on the Galaxy A05 before setting performance claims.
 
 Performance targets must be verified on actual devices; no Galaxy A05 benchmark has been run yet.
