@@ -17,6 +17,10 @@ if(MSVC)
     target_compile_options(spoon_physics PRIVATE /W4 /permissive-)
 else()
     target_compile_options(spoon_physics PRIVATE -Wall -Wextra -Wpedantic)
+
+    add_executable(spoon_tissue_bending_tests tests/physics/tissue_bending_tests.cpp)
+    target_link_libraries(spoon_tissue_bending_tests PRIVATE Spoon::Physics)
+    add_test(NAME spoon_tissue_bending_tests COMMAND spoon_tissue_bending_tests)
 endif()
 
 if(SPOON_BUILD_TESTS)
@@ -58,7 +62,3 @@ if(SPOON_BUILD_TESTS)
     target_link_libraries(spoon_tissue_volume_tests PRIVATE Spoon::Physics)
     add_test(NAME spoon_tissue_volume_tests COMMAND spoon_tissue_volume_tests)
 endif()
-
-    add_executable(spoon_tissue_bending_tests tests/physics/tissue_bending_tests.cpp)
-    target_link_libraries(spoon_tissue_bending_tests PRIVATE Spoon::Physics)
-    add_test(NAME spoon_tissue_bending_tests COMMAND spoon_tissue_bending_tests)
