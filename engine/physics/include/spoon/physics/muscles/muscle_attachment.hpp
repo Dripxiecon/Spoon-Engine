@@ -32,17 +32,19 @@ inline Vec3 cross(const Vec3& a, const Vec3& b) {
             a.x*b.y - a.y*b.x};
 }
 
-// Converts a muscle's attachment forces into force/torque pairs for the two bones.
-// Torques are measured about each bone pose's translation (its pivot).
 inline MuscleAttachmentForces evaluate_muscle_attachment(
     const MuscleUnit& muscle,
     const MuscleAttachment& attachment,
-    const std::vector<BonePose>& world_poses) {
+    const std::vector<BonePose>& world_poses,
+    const Vec3& origin_velocity = {},
+    const Vec3& insertion_velocity = {}) {
     MuscleAttachmentForces result{};
     if (attachment.origin_bone >= world_poses.size() ||
         attachment.insertion_bone >= world_poses.size() ||
         !attachment.origin_local.is_finite() ||
-        !attachment.insertion_local.is_finite()) return result;
+        !attachment.insertion_local.is_finite() ||
+        !origin_velocity.is_finite() || !insertion_velocity.is_finite())
+        return result;
 
     const BonePose& origin_bone = world_poses[attachment.origin_bone];
     const BonePose& insertion_bone = world_poses[attachment.insertion_bone];
@@ -50,8 +52,9 @@ inline MuscleAttachmentForces evaluate_muscle_attachment(
 
     result.origin_position = origin_bone.transform_point(attachment.origin_local);
     result.insertion_position = insertion_bone.transform_point(attachment.insertion_local);
-    const MuscleForces muscle_forces =
-        muscle.evaluate(result.origin_position, result.insertion_position);
+    const MuscleForces muscle_forces = muscle.evaluate(
+        result.origin_position, result.insertion_position,
+        origin_velocity, insertion_velocity);
     result.origin_force = muscle_forces.origin;
     result.insertion_force = muscle_forces.insertion;
     result.origin_torque = cross(result.origin_position - origin_bone.translation,
@@ -64,7 +67,8 @@ inline MuscleAttachmentForces evaluate_muscle_attachment(
                    result.origin_force.is_finite() &&
                    result.insertion_force.is_finite() &&
                    result.origin_torque.is_finite() &&
-                   result.insertion_torque.is_finite();
+                   result.insertion_torque.is_finite() &&
+                   std::isfinite(result.tension);
     return result;
 }
 
