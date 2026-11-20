@@ -58,3 +58,7 @@ if(SPOON_BUILD_TESTS)
     target_link_libraries(spoon_tissue_volume_tests PRIVATE Spoon::Physics)
     add_test(NAME spoon_tissue_volume_tests COMMAND spoon_tissue_volume_tests)
 endif()
+
+    add_executable(spoon_tissue_bending_tests tests/physics/tissue_bending_tests.cpp)
+    target_link_libraries(spoon_tissue_bending_tests PRIVATE Spoon::Physics)
+    add_test(NAME spoon_tissue_bending_tests COMMAND spoon_tissue_bending_tests)
