@@ -10,7 +10,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
-import java.util.Locale;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -104,6 +103,8 @@ public final class BoneGLView extends GLSurfaceView {
         private final float[] viewProjection = new float[16];
         private final float[] model = new float[16];
         private final float[] mvp = new float[16];
+        private final float[] qMatrix = new float[16];
+        private final float[] rotatedModel = new float[16];
         private FloatBuffer vertices;
         private ShortBuffer indices;
         private int indexCount;
@@ -226,8 +227,6 @@ public final class BoneGLView extends GLSurfaceView {
             float norm=(float)Math.sqrt(qw*qw+qx*qx+qy*qy+qz*qz);
             if (norm > 0.00001f) {
                 qw/=norm; qx/=norm; qy/=norm; qz/=norm;
-                float[] rotation=new float[16];
-                float[] qMatrix=new float[16];
                 Matrix.setIdentityM(qMatrix,0);
                 float xx=qx*qx, yy=qy*qy, zz=qz*qz;
                 float xy=qx*qy, xz=qx*qz, yz=qy*qz;
@@ -235,8 +234,8 @@ public final class BoneGLView extends GLSurfaceView {
                 qMatrix[0]=1f-2f*(yy+zz); qMatrix[1]=2f*(xy+wz); qMatrix[2]=2f*(xz-wy);
                 qMatrix[4]=2f*(xy-wz); qMatrix[5]=1f-2f*(xx+zz); qMatrix[6]=2f*(yz+wx);
                 qMatrix[8]=2f*(xz+wy); qMatrix[9]=2f*(yz-wx); qMatrix[10]=1f-2f*(xx+yy);
-                Matrix.multiplyMM(rotation,0,model,0,qMatrix,0);
-                System.arraycopy(rotation,0,model,0,16);
+                Matrix.multiplyMM(rotatedModel,0,model,0,qMatrix,0);
+                System.arraycopy(rotatedModel,0,model,0,16);
             }
             Matrix.scaleM(model,0,sx,sy,sz);
             drawModel(model,color[0],color[1],color[2],color[3]);
@@ -286,8 +285,8 @@ public final class BoneGLView extends GLSurfaceView {
             for(int y=0;y<rings;y++) for(int x=0;x<slices;x++) {
                 short a=(short)(y*(slices+1)+x);
                 short b=(short)(a+slices+1);
-                faces[f++]=a; faces[f++]=b; faces[f++]=(short)(a+1);
-                faces[f++]=(short)(a+1); faces[f++]=b; faces[f++]=(short)(b+1);
+                faces[f++]=a; faces[f++]=(short)(a+1); faces[f++]=b;
+                faces[f++]=(short)(a+1); faces[f++]=(short)(b+1); faces[f++]=b;
             }
             vertices=ByteBuffer.allocateDirect(data.length*4).order(ByteOrder.nativeOrder()).asFloatBuffer();
             vertices.put(data).position(0);
