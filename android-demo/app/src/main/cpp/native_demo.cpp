@@ -65,8 +65,8 @@ struct DemoState {
             if (!rig.step(solver, dt)) return false;
             solver.step(dt);
             BoneBody& forearm = solver.bodies[1];
-            forearm.angular_velocity *= 0.997f;
-            forearm.linear_velocity *= 0.995f;
+            forearm.angular_velocity = forearm.angular_velocity * 0.997f;
+            forearm.linear_velocity = forearm.linear_velocity * 0.995f;
         }
         return true;
     }
