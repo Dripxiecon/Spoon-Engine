@@ -254,7 +254,7 @@ private:
         const Vec3 edge=pb-pa;
         const float edge2=edge.length_squared();
         const Vec3 raw1=cross(edge,pc-pa);
-        const Vec3 raw2=cross(pd-pb,pa-pb);
+        const Vec3 raw2=cross(pa-pb,pd-pb);
         const float n12=raw1.length_squared(), n22=raw2.length_squared();
         if (!std::isfinite(edge2) || edge2<=1.0e-12f ||
             !std::isfinite(n12) || !std::isfinite(n22) ||
@@ -269,7 +269,7 @@ private:
         const float constraint=std::remainder(angle-hinge.rest_angle,2.0f*pi);
 
         const Vec3 gc=raw1*(-edge_length/n12);
-        const Vec3 gd=raw2*( edge_length/n22);
+        const Vec3 gd=raw2*(-edge_length/n22);
         const Vec3 ga=gc*(dot(pc-pb,edge)/edge2) +
                       gd*(dot(pd-pb,edge)/edge2);
         const Vec3 gb=gc*(-dot(pc-pa,edge)/edge2) +
