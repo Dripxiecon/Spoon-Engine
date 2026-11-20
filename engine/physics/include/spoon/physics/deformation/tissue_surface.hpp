@@ -185,7 +185,7 @@ inline bool build_tissue_surface_dihedrals(
                       edge.y*(nodes[hinge.opposite_a].position-nodes[hinge.edge_a].position).x};
         const Vec3 da=nodes[hinge.opposite_b].position-nodes[hinge.edge_b].position;
         const Vec3 rev=nodes[hinge.edge_a].position-nodes[hinge.edge_b].position;
-        const Vec3 r2{da.y*rev.z-da.z*rev.y,da.z*rev.x-da.x*rev.z,da.x*rev.y-da.y*rev.x};
+        const Vec3 r2{rev.y*da.z-rev.z*da.y,rev.z*da.x-rev.x*da.z,rev.x*da.y-rev.y*da.x};
         const float l1=r1.length_squared(), l2=r2.length_squared();
         if (edge.length_squared()<=1.0e-12f || l1<=1.0e-12f || l2<=1.0e-12f)
             continue;
