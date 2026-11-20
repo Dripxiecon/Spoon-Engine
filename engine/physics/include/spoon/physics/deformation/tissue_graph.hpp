@@ -30,6 +30,15 @@ struct TissueNode final {
     }
 };
 
+struct TissueTetrahedron final {
+    std::size_t node_a{0}, node_b{0}, node_c{0}, node_d{0};
+    float rest_volume{0.0f};
+    float compliance{0.0f};
+    float accumulated_lambda{0.0f};
+    bool enabled{true};
+    void reset() { accumulated_lambda = 0.0f; }
+};
+
 struct TissueLink final {
     std::size_t node_a{0};
     std::size_t node_b{0};
@@ -45,12 +54,14 @@ struct TissueLink final {
 class TissueGraph final {
 public:
     explicit TissueGraph(std::size_t node_count = 0,
-                         std::size_t link_count = 0)
-        : nodes(node_count), links(link_count), predicted_positions(node_count),
-          previous_positions(node_count) {}
+                         std::size_t link_count = 0,
+                         std::size_t tetrahedron_count = 0)
+        : nodes(node_count), links(link_count), tetrahedra(tetrahedron_count),
+          predicted_positions(node_count), previous_positions(node_count) {}
 
     std::vector<TissueNode> nodes;
     std::vector<TissueLink> links;
+    std::vector<TissueTetrahedron> tetrahedra;
     Vec3 gravity{};
     int constraint_iterations{6};
 
@@ -100,9 +111,12 @@ public:
         }
 
         for (TissueLink& link : links) link.reset();
+        for (TissueTetrahedron& tetrahedron : tetrahedra) tetrahedron.reset();
         const int iterations = std::max(1, constraint_iterations);
         for (int iteration = 0; iteration < iterations; ++iteration) {
             for (TissueLink& link : links) solve_link(link, delta_time);
+            for (TissueTetrahedron& tetrahedron : tetrahedra)
+                solve_tetrahedron(tetrahedron, delta_time);
         }
 
         for (std::size_t i = 0; i < nodes.size(); ++i) {
@@ -154,6 +168,57 @@ private:
             direction * (weight_a * delta_lambda);
         predicted_positions[link.node_b] +=
             direction * (weight_b * delta_lambda);
+    }
+
+
+    void solve_tetrahedron(TissueTetrahedron& t, float delta_time) {
+        if (!t.enabled || t.node_a >= nodes.size() || t.node_b >= nodes.size() ||
+            t.node_c >= nodes.size() || t.node_d >= nodes.size() ||
+            t.node_a == t.node_b || t.node_a == t.node_c ||
+            t.node_a == t.node_d || t.node_b == t.node_c ||
+            t.node_b == t.node_d || t.node_c == t.node_d ||
+            !std::isfinite(t.rest_volume) || t.rest_volume <= 1.0e-10f ||
+            !std::isfinite(t.compliance) || t.compliance < 0.0f) return;
+
+        const std::size_t ids[4] = {t.node_a, t.node_b, t.node_c, t.node_d};
+        const Vec3 a = predicted_positions[ids[0]];
+        const Vec3 ab = predicted_positions[ids[1]] - a;
+        const Vec3 ac = predicted_positions[ids[2]] - a;
+        const Vec3 ad = predicted_positions[ids[3]] - a;
+        const Vec3 gb{
+            (ac.y*ad.z-ac.z*ad.y)/6.0f,
+            (ac.z*ad.x-ac.x*ad.z)/6.0f,
+            (ac.x*ad.y-ac.y*ad.x)/6.0f};
+        const Vec3 gc{
+            (ad.y*ab.z-ad.z*ab.y)/6.0f,
+            (ad.z*ab.x-ad.x*ab.z)/6.0f,
+            (ad.x*ab.y-ad.y*ab.x)/6.0f};
+        const Vec3 gd{
+            (ab.y*ac.z-ab.z*ac.y)/6.0f,
+            (ab.z*ac.x-ab.x*ac.z)/6.0f,
+            (ab.x*ac.y-ab.y*ac.x)/6.0f};
+        const Vec3 gradients[4] = {(gb+gc+gd)*-1.0f, gb, gc, gd};
+        const float volume = (ab.x*(ac.y*ad.z-ac.z*ad.y) +
+                              ab.y*(ac.z*ad.x-ac.x*ad.z) +
+                              ab.z*(ac.x*ad.y-ac.y*ad.x))/6.0f;
+        const float constraint = volume - t.rest_volume;
+        if (!std::isfinite(constraint)) return;
+
+        float weights[4]{};
+        float denominator = 0.0f;
+        for (int i=0; i<4; ++i) {
+            const TissueNode& node = nodes[ids[i]];
+            weights[i] = node.is_dynamic() ? node.inverse_mass : 0.0f;
+            denominator += weights[i] * gradients[i].length_squared();
+        }
+        const float alpha = t.compliance/(delta_time*delta_time);
+        denominator += alpha;
+        if (!std::isfinite(denominator) || denominator <= 1.0e-12f) return;
+        const float dl = (-constraint-alpha*t.accumulated_lambda)/denominator;
+        if (!std::isfinite(dl)) return;
+        t.accumulated_lambda += dl;
+        for (int i=0; i<4; ++i)
+            predicted_positions[ids[i]] += gradients[i]*(weights[i]*dl);
     }
 
     void apply_link_damping(const TissueLink& link) {
