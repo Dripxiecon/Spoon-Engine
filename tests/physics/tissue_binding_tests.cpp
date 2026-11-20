@@ -12,7 +12,9 @@ int main() {
     graph.constraint_iterations = 16;
     graph.nodes[0].position = {};
     graph.nodes[1].position = {1.0f, 0.0f, 0.0f};
-    graph.nodes[2].position = {2.0f, 0.0f, 0.0f};
+    // A bent chain transfers transverse motion through its second link.
+    // A perfectly straight distance-only chain has no first-order bending resistance.
+    graph.nodes[2].position = {1.0f, 1.0f, 0.0f};
     graph.links[0] = {0, 1, 1.0f, 0.0f, 0.08f};
     graph.links[1] = {1, 2, 1.0f, 0.0f, 0.08f};
 
@@ -31,7 +33,7 @@ int main() {
 
     for (int i = 0; i < 8; ++i) graph.step(1.0f / 120.0f);
     assert(graph.nodes[1].position.y > 0.0f);
-    assert(graph.nodes[2].position.y > 0.0f);
+    assert(std::fabs(graph.nodes[2].position.y - 1.0f) > 1.0e-5f);
     assert(std::fabs(graph.nodes[0].position.y - 0.5f) < 1.0e-6f);
 
     // Rotated and translated bone-local anchors are transformed consistently.
