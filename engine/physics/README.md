@@ -7,6 +7,7 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Compact vector and quaternion math, plus bone transforms with translation, rotation and non-uniform scale.
 - Four-influence weighted geometry deformation using bone-local bind positions.
 - Muscle activation dynamics, active force-length response, passive stretch resistance and damping.
+- Coordinated muscle groups with smoothed activation, weighted muscle recruitment, and agonist, antagonist and stabilizer roles.
 - Muscle shape response: contraction shortens the profile and can increase its radius to approximate volume preservation.
 - Fixed-step clock with a bounded substep count to prevent runaway catch-up after frame stalls.
 - Parent-child skeleton pose evaluation with cycle and invalid-index detection.
@@ -17,7 +18,7 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Lightweight tissue graph with XPBD distance links, topology-generated surface bend-distance and signed dihedral-angle constraints, signed-volume tetrahedron constraints, compliance, damping, local impulses and radial ripple impulses.
 - Bone-to-tissue bindings that make selected tissue nodes follow bone-local anchors and transmit anchor motion into neighboring tissue.
 - Tissue-to-skinning bridge that blends simulated tissue-node displacement into already-skinned mesh vertices.
-- Fifteen deterministic test executables covering the physics foundations, bone solver and tissue deformation pipeline.
+- Sixteen deterministic test executables covering the physics foundations, bone solver and tissue deformation pipeline.
 
 ## Bone bodies and joints
 
@@ -41,7 +42,7 @@ Each skinned vertex can carry up to four bone influences. Every influence stores
 
 ## Muscle behavior
 
-MuscleUnit calculates active and passive tension between two attachment points. MuscleGeometry provides a cheap shape target for a muscle mesh, including configurable volume-preservation strength and a maximum bulge limit. The geometry helper does not itself simulate muscle fibers or solve a complete anatomical body. MuscleAttachment binds each muscle endpoint to a bone-local point and converts muscle tension into forces and torques consumed by BoneSolver.
+`MuscleGroupController` coordinates multiple `MuscleUnit` instances. Each group has its own smoothed activation, role (agonist, antagonist or stabilizer), and weighted member list. Separate agonist and antagonist groups can receive different targets; stabilizer groups can remain partially active while movement occurs. Overlapping group contributions are added and clamped to the muscle's 0–1 activation range. Call `prepare` when the muscle count changes, then `step` at the fixed simulation interval; the controller's frame step uses pre-sized scratch buffers. MuscleUnit calculates active and passive tension between two attachment points. MuscleGeometry provides a cheap shape target for a muscle mesh, including configurable volume-preservation strength and a maximum bulge limit. The geometry helper does not itself simulate muscle fibers or solve a complete anatomical body. MuscleAttachment binds each muscle endpoint to a bone-local point and converts muscle tension into forces and torques consumed by BoneSolver.
 
 ## Build and test
 
