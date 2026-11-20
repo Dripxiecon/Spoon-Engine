@@ -57,7 +57,14 @@ public final class MainActivity extends Activity {
         glTest.setOnClickListener(v ->
                 startActivity(new Intent(this, GlProbeActivity.class)));
 
-        Button nativeTest = new Button(this);\n        nativeTest.setText("RUN NATIVE-LIBRARY TEST");\n        nativeTest.setAllCaps(false);\n        root.addView(nativeTest, fullWidth());\n        nativeTest.setOnClickListener(v ->\n                startActivity(new Intent(this, NativeProbeActivity.class)));\n\n        Button refresh = new Button(this);
+        Button nativeTest = new Button(this);
+        nativeTest.setText("RUN NATIVE-LIBRARY TEST");
+        nativeTest.setAllCaps(false);
+        root.addView(nativeTest, fullWidth());
+        nativeTest.setOnClickListener(v ->
+                startActivity(new Intent(this, NativeProbeActivity.class)));
+
+        Button refresh = new Button(this);
         refresh.setText("REFRESH CRASH REPORT");
         refresh.setAllCaps(false);
         root.addView(refresh, fullWidth());
