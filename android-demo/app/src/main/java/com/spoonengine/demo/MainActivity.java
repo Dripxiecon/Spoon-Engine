@@ -1,6 +1,7 @@
 package com.spoonengine.demo;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.app.AlertDialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -16,9 +17,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 public final class MainActivity extends Activity implements Choreographer.FrameCallback {
-    static {
-        System.loadLibrary("spoon_demo");
-    }
+    private boolean nativeLoaded;
 
     private BoneGLView scene;
     private TextView status;
@@ -102,10 +101,23 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         root.addView(bottomBar, bottomParams);
 
         setContentView(root);
-        lastReadout = nativeReset();
-        refreshScene();
+        CrashDiagnostics.setStage("Loading native physics library");
+        try {
+            System.loadLibrary("spoon_demo");
+            nativeLoaded = true;
+            CrashDiagnostics.setStage("Creating initial physics scene");
+            lastReadout = nativeReset();
+            refreshScene();
+            CrashDiagnostics.setStage("Application running");
+        } catch (Throwable error) {
+            nativeLoaded = false;
+            CrashDiagnostics.record(this, "Startup initialization failed", error);
+            status.setText("STARTUP ERROR  ·  OPEN MENU FOR REPORT");
+        }
+        CrashDiagnostics.showPrevious(this);
 
         menu.setOnClickListener(view -> showControls());
+        heading.setOnClickListener(view -> CrashDiagnostics.showPrevious(this));
         pause.setOnClickListener(view -> {
             running = !running;
             accumulator = 0.0;
@@ -160,10 +172,19 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 .setPositiveButton("CLOSE", null)
                 .create();
         reset.setOnClickListener(view -> {
-            lastReadout = nativeReset();
-            accumulator = 0.0;
-            refreshScene();
-            details.setText(lastReadout);
+            if (!nativeLoaded) {
+                details.setText(CrashDiagnostics.readReport(this));
+                return;
+            }
+            try {
+                lastReadout = nativeReset();
+                accumulator = 0.0;
+                refreshScene();
+                details.setText(lastReadout);
+            } catch (Throwable error) {
+                CrashDiagnostics.record(this, "Physics reset failed", error);
+                details.setText(CrashDiagnostics.readReport(this));
+            }
         });
         dialog.show();
     }
@@ -204,7 +225,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     @Override
     public void doFrame(long frameTimeNanos) {
         framePosted = false;
-        if (!running) return;
+        if (!running || !nativeLoaded) return;
 
         if (previousFrameNanos != 0L) {
             double frameDelta = Math.min(
@@ -213,7 +234,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             final double fixedDelta = 1.0 / 120.0;
             int steps = Math.min(8, (int)(accumulator / fixedDelta));
             if (steps > 0) {
-                lastReadout = nativeStep(activation / 100.0f, steps);
+                try {
+                    lastReadout = nativeStep(activation / 100.0f, steps);
+                } catch (Throwable error) {
+                    running = false;
+                    CrashDiagnostics.record(this, "Physics update failed", error);
+                    if (status != null) status.setText("PHYSICS ERROR  ·  REPORT SAVED");
+                    return;
+                }
                 accumulator -= steps * fixedDelta;
                 if (steps == 8 && accumulator >= fixedDelta) {
                     accumulator %= fixedDelta;
@@ -232,7 +260,15 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     private void refreshScene() {
-        if (scene != null) scene.setState(nativeSceneState());
+        if (scene != null && nativeLoaded) {
+            try {
+                scene.setState(nativeSceneState());
+            } catch (Throwable error) {
+                running = false;
+                CrashDiagnostics.record(this, "Reading physics scene failed", error);
+                if (status != null) status.setText("SCENE ERROR  ·  REPORT SAVED");
+            }
+        }
     }
 
     private int dp(float value) {
