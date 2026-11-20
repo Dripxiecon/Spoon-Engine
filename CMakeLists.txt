@@ -11,7 +11,10 @@ add_library(spoon_physics
 add_library(Spoon::Physics ALIAS spoon_physics)
 target_include_directories(spoon_physics PUBLIC engine/physics/include)
 target_compile_features(spoon_physics PUBLIC cxx_std_17)
-set_target_properties(spoon_physics PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(spoon_physics PROPERTIES
+    CXX_EXTENSIONS OFF
+    POSITION_INDEPENDENT_CODE ON
+)
 
 if(MSVC)
     target_compile_options(spoon_physics PRIVATE /W4 /permissive-)
