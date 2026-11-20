@@ -72,6 +72,17 @@ struct DemoState {
             << "Bodies: 2 | Muscle actuators: 1";
         return out.str();
     }
+
+    void scene_state(float* out) const {
+        const Vec3 a = solver.bodies[0].pose.translation;
+        const Vec3 b = solver.bodies[1].pose.translation;
+        const Vec3 delta = b - a;
+        out[0] = a.x; out[1] = a.y; out[2] = a.z;
+        out[3] = b.x; out[4] = b.y; out[5] = b.z;
+        out[6] = rig.muscles[0].activation();
+        out[7] = rig.muscles[0].activation() * 90.0f;
+        out[8] = delta.length();
+    }
 };
 
 std::unique_ptr<DemoState> g_demo;
@@ -95,4 +106,14 @@ Java_com_spoonengine_demo_MainActivity_nativeStep(
     if (!g_demo->step(activation, frames))
         return to_java_string(env, "Simulation rejected the step. Reset and try again.");
     return to_java_string(env, g_demo->status());
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_com_spoonengine_demo_MainActivity_nativeSceneState(JNIEnv* env, jclass) {
+    if (!g_demo) g_demo = std::make_unique<DemoState>();
+    jfloat values[9]{};
+    g_demo->scene_state(values);
+    jfloatArray result = env->NewFloatArray(9);
+    if (result) env->SetFloatArrayRegion(result, 0, 9, values);
+    return result;
 }
