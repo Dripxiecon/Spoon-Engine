@@ -5,6 +5,7 @@ option(SPOON_BUILD_TESTS "Build Spoon physics tests" ON)
 
 add_library(spoon_physics
     engine/physics/src/bone_spring.cpp
+    engine/physics/src/muscle_unit.cpp
 )
 add_library(Spoon::Physics ALIAS spoon_physics)
 target_include_directories(spoon_physics PUBLIC engine/physics/include)
@@ -19,7 +20,13 @@ endif()
 
 if(SPOON_BUILD_TESTS)
     enable_testing()
-    add_executable(spoon_physics_tests tests/physics/bone_spring_tests.cpp)
-    target_link_libraries(spoon_physics_tests PRIVATE Spoon::Physics)
-    add_test(NAME spoon_physics_tests COMMAND spoon_physics_tests)
+    add_executable(spoon_bone_spring_tests tests/physics/bone_spring_tests.cpp)
+    target_link_libraries(spoon_bone_spring_tests PRIVATE Spoon::Physics)
+    add_test(NAME spoon_bone_spring_tests COMMAND spoon_bone_spring_tests)
+    add_executable(spoon_muscle_unit_tests tests/physics/muscle_unit_tests.cpp)
+    target_link_libraries(spoon_muscle_unit_tests PRIVATE Spoon::Physics)
+    add_test(NAME spoon_muscle_unit_tests COMMAND spoon_muscle_unit_tests)
+    add_executable(spoon_fixed_step_clock_tests tests/physics/fixed_step_clock_tests.cpp)
+    target_link_libraries(spoon_fixed_step_clock_tests PRIVATE Spoon::Physics)
+    add_test(NAME spoon_fixed_step_clock_tests COMMAND spoon_fixed_step_clock_tests)
 endif()
