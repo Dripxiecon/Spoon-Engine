@@ -1,9 +1,11 @@
 #pragma once
 
+#include "spoon/physics/muscles/muscle_attachment.hpp"
 #include "spoon/physics/simulation/bone_body.hpp"
 #include "spoon/physics/simulation/fixed_step_clock.hpp"
 #include "spoon/physics/simulation/joint_constraint.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -32,34 +34,11 @@ public:
     }
 
     void step(float delta_time) {
-        if (delta_time <= 0.0f) return;
-        for (BoneBody& body : bodies) {
-            if (body.enabled && body.is_dynamic()) {
-                body.linear_velocity += (gravity + body.accumulated_force *
-                    body.inverse_mass) * delta_time;
-                body.angular_velocity +=
-                    body.inverse_inertia_world(body.accumulated_torque) * delta_time;
-                body.pose.translation += body.linear_velocity * delta_time;
-                const Quaternion omega{0.0f, body.angular_velocity.x,
-                                       body.angular_velocity.y, body.angular_velocity.z};
-                const Quaternion derivative = multiply(omega, body.pose.rotation);
-                const float half_delta = 0.5f * delta_time;
-                body.pose.rotation = Quaternion{
-                    body.pose.rotation.w + derivative.w * half_delta,
-                    body.pose.rotation.x + derivative.x * half_delta,
-                    body.pose.rotation.y + derivative.y * half_delta,
-                    body.pose.rotation.z + derivative.z * half_delta
-                }.normalized();
-            }
-            body.clear_accumulators();
-        }
+        if (!std::isfinite(delta_time) || delta_time <= 0.0f) return;
+        for (BoneBody& body : bodies) body.integrate(delta_time, gravity);
 
         const int iterations = constraint_iterations < 1 ? 1 : constraint_iterations;
-        for (BoneJoint& joint : joints) {
-            if (joint.body_a >= bodies.size() || joint.body_b >= bodies.size())
-                continue;
-            joint.reset();
-        }
+        for (BoneJoint& joint : joints) joint.reset();
         for (int iteration = 0; iteration < iterations; ++iteration) {
             for (BoneJoint& joint : joints) {
                 if (joint.body_a < bodies.size() && joint.body_b < bodies.size())
