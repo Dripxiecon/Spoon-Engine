@@ -20,6 +20,9 @@ int main() {
     torque_body.apply_force_at_point({0.0f, 1.0f, 0.0f},
                                      {1.0f, 0.0f, 0.0f});
     assert(std::fabs(torque_body.accumulated_torque.z - 1.0f) < 1.0e-5f);
+    torque_body.integrate(0.1f, {});
+    assert(torque_body.angular_velocity.z > 0.09f);
+    assert(torque_body.pose.rotation.z > 0.004f);
 
     BoneSolver solver(2, 1);
     solver.gravity = {};
@@ -36,6 +39,16 @@ int main() {
     joint.local_anchor_b = {-1.0f, 0.0f, 0.0f};
     solver.joints[0] = joint;
     solver.bodies[1].pose.translation.x = 1.5f;
+
+    MuscleAttachmentForces muscle_forces{};
+    muscle_forces.valid = true;
+    muscle_forces.origin_position = {0.0f, 0.0f, 0.0f};
+    muscle_forces.insertion_position = {1.5f, 0.0f, 0.0f};
+    muscle_forces.origin_force = {3.0f, 0.0f, 0.0f};
+    muscle_forces.insertion_force = {-3.0f, 0.0f, 0.0f};
+    assert(solver.add_muscle_forces(muscle_forces, 0, 1));
+    assert(solver.bodies[1].accumulated_force.x == -3.0f);
+    solver.bodies[1].clear_accumulators();
 
     for (int i = 0; i < 10; ++i) solver.step(1.0f / 120.0f);
     const Vec3 anchor_a = solver.bodies[0].pose.transform_point(
