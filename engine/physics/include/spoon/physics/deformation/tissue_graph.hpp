@@ -41,6 +41,17 @@ struct TissueTetrahedron final {
     void reset() { accumulated_lambda = 0.0f; barrier_lambda = 0.0f; }
 };
 
+struct TissueBendConstraint final {
+    std::size_t node_a{0};
+    std::size_t node_b{0};
+    float rest_distance{0.0f};
+    float compliance{0.001f};
+    float accumulated_lambda{0.0f};
+    bool enabled{true};
+
+    void reset() { accumulated_lambda = 0.0f; }
+};
+
 struct TissueLink final {
     std::size_t node_a{0};
     std::size_t node_b{0};
@@ -57,13 +68,16 @@ class TissueGraph final {
 public:
     explicit TissueGraph(std::size_t node_count = 0,
                          std::size_t link_count = 0,
-                         std::size_t tetrahedron_count = 0)
+                         std::size_t tetrahedron_count = 0,
+                         std::size_t bend_count = 0)
         : nodes(node_count), links(link_count), tetrahedra(tetrahedron_count),
+          bends(bend_count),
           predicted_positions(node_count), previous_positions(node_count) {}
 
     std::vector<TissueNode> nodes;
     std::vector<TissueLink> links;
     std::vector<TissueTetrahedron> tetrahedra;
+    std::vector<TissueBendConstraint> bends;
     Vec3 gravity{};
     int constraint_iterations{6};
 
@@ -114,9 +128,11 @@ public:
 
         for (TissueLink& link : links) link.reset();
         for (TissueTetrahedron& tetrahedron : tetrahedra) tetrahedron.reset();
+        for (TissueBendConstraint& bend : bends) bend.reset();
         const int iterations = std::max(1, constraint_iterations);
         for (int iteration = 0; iteration < iterations; ++iteration) {
             for (TissueLink& link : links) solve_link(link, delta_time);
+            for (TissueBendConstraint& bend : bends) solve_bend(bend, delta_time);
             for (TissueTetrahedron& tetrahedron : tetrahedra) {
                 solve_tetrahedron_barrier(tetrahedron, delta_time);
                 solve_tetrahedron(tetrahedron, delta_time);
@@ -175,6 +191,41 @@ private:
     }
 
 
+
+
+    void solve_bend(TissueBendConstraint& bend, float delta_time) {
+        if (!bend.enabled || bend.node_a >= nodes.size() ||
+            bend.node_b >= nodes.size() || bend.node_a == bend.node_b ||
+            !std::isfinite(bend.rest_distance) || bend.rest_distance <= 0.0f ||
+            !std::isfinite(bend.compliance) || bend.compliance < 0.0f)
+            return;
+
+        const float weight_a = nodes[bend.node_a].is_dynamic()
+            ? nodes[bend.node_a].inverse_mass : 0.0f;
+        const float weight_b = nodes[bend.node_b].is_dynamic()
+            ? nodes[bend.node_b].inverse_mass : 0.0f;
+        const float weight_sum = weight_a + weight_b;
+        if (weight_sum <= 0.0f) return;
+
+        const Vec3 delta = predicted_positions[bend.node_b] -
+                           predicted_positions[bend.node_a];
+        const float distance_squared = delta.length_squared();
+        if (!std::isfinite(distance_squared) || distance_squared <= 1.0e-12f)
+            return;
+        const float distance = std::sqrt(distance_squared);
+        const Vec3 direction = delta / distance;
+        const float constraint = distance - bend.rest_distance;
+        const float alpha = bend.compliance / (delta_time * delta_time);
+        const float denominator = weight_sum + alpha;
+        if (!std::isfinite(denominator) || denominator <= 1.0e-12f) return;
+
+        const float delta_lambda =
+            (-constraint - alpha * bend.accumulated_lambda) / denominator;
+        if (!std::isfinite(delta_lambda)) return;
+        bend.accumulated_lambda += delta_lambda;
+        predicted_positions[bend.node_a] -= direction * (weight_a * delta_lambda);
+        predicted_positions[bend.node_b] += direction * (weight_b * delta_lambda);
+    }
 
     void solve_tetrahedron_barrier(TissueTetrahedron& t, float delta_time) {
         if (!t.enabled || t.node_a >= nodes.size() || t.node_b >= nodes.size() ||
