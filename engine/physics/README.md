@@ -1,15 +1,17 @@
 # Spoon Physics
 
-A modular C++ physics subsystem for Spoon-Engine, designed to scale from Android-class hardware (initial target: Galaxy A05) to desktop.
+A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is Galaxy A05, with desktop scalability as a parallel goal.
 
-## Current foundation
+## Implemented foundations
 
-- Small, allocation-free vector math primitive.
-- Configurable damped bone spring with impulse and acceleration input.
-- Explicit active/sleep control for cheap inactive systems.
-- CMake build and a small deterministic test executable.
+- Allocation-free `Vec3` math primitive.
+- Damped bone spring with impulses, external acceleration and inactive-state control.
+- Muscle unit with activation dynamics, active force-length response, passive stretch resistance and damping.
+- Equal-and-opposite muscle attachment forces, so the muscle pulls rather than pushes.
+- Fixed-step clock with a bounded substep count to prevent runaway catch-up after frame stalls.
+- Separate deterministic test executables for each foundation module.
 
-## Build
+## Build and test
 
 ```sh
 cmake -S . -B build -DSPOON_BUILD_TESTS=ON
@@ -19,12 +21,16 @@ ctest --test-dir build --output-on-failure
 
 ## Architecture roadmap
 
-1. Bone graph and fixed-step simulation scheduler.
-2. Constraint solver (distance, bend, angular and attachment constraints).
-3. Ripple propagation over bone graphs.
-4. Hybrid soft-body clusters and volume-preserving constraints.
-5. Collision detection, contact solving and optional self-collision.
-6. Mesh deformation adapters and renderer integration.
-7. Deterministic tests, profiling and Android/desktop benchmarks.
+1. Bone graph with joints and anatomical attachment points.
+2. Muscle groups, tendons and joint stabilization.
+3. XPBD constraint solver (distance, bend, angular and attachment constraints).
+4. Tissue graph and ripple propagation with damping, material response and energy limits.
+5. Hybrid soft-body clusters with shape and volume preservation.
+6. Collision detection, contact solving and optional self-collision.
+7. Mesh deformation adapters, profiling and Android/desktop benchmarks.
 
-The current spring is a foundation primitive, not a complete soft-body or collision engine. Performance targets must be verified on actual devices.
+## Important model boundary
+
+The muscle unit currently computes forces between two supplied attachment points. It does not yet own a skeleton, solve joint motion, or model full muscle fiber geometry. The fixed-step clock also leaves the actual simulation loop to its caller. These pieces are deliberately separate so the next modules can connect them without creating one oversized physics class.
+
+Performance targets must be verified on actual devices; no Galaxy A05 benchmark has been run yet.
