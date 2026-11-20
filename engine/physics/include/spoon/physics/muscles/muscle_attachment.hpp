@@ -3,6 +3,7 @@
 #include "spoon/physics/bones/bone_pose.hpp"
 #include "spoon/physics/muscles/muscle_unit.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
