@@ -20,7 +20,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         System.loadLibrary("spoon_demo");
     }
 
-    private BoneSceneView scene;
+    private BoneGLView scene;
     private TextView status;
     private int activation = 75;
     private boolean running;
@@ -40,7 +40,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.rgb(12, 19, 28));
 
-        scene = new BoneSceneView(this);
+        scene = new BoneGLView(this);
         root.addView(scene, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -171,6 +171,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     @Override
     protected void onResume() {
         super.onResume();
+        if (scene != null) scene.onResume();
         running = true;
         startFrames();
     }
@@ -179,6 +180,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     protected void onPause() {
         running = false;
         stopFrames();
+        if (scene != null) scene.onPause();
         super.onPause();
     }
 
@@ -213,6 +215,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             if (steps > 0) {
                 lastReadout = nativeStep(activation / 100.0f, steps);
                 accumulator -= steps * fixedDelta;
+                if (steps == 8 && accumulator >= fixedDelta) {
+                    accumulator %= fixedDelta;
+                }
                 if (status != null && !lastReadout.isEmpty()) {
                     status.setText("LIVE  ·  " + activation + "% MUSCLE  ·  120 Hz");
                 }
