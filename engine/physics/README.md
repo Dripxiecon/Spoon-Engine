@@ -18,7 +18,7 @@ A modular C++17 physics subsystem for Spoon-Engine. The initial mobile target is
 - Lightweight tissue graph with XPBD distance links, topology-generated surface bend-distance and signed dihedral-angle constraints, signed-volume tetrahedron constraints, compliance, damping, local impulses and radial ripple impulses.
 - Bone-to-tissue bindings that make selected tissue nodes follow bone-local anchors and transmit anchor motion into neighboring tissue.
 - Tissue-to-skinning bridge that blends simulated tissue-node displacement into already-skinned mesh vertices.
-- Sixteen deterministic test executables covering the physics foundations, bone solver and tissue deformation pipeline.
+- Seventeen deterministic test executables covering the physics foundations, muscle-to-bone integration, bone solver and tissue deformation pipeline.
 
 ## Bone bodies and joints
 
@@ -42,7 +42,7 @@ Each skinned vertex can carry up to four bone influences. Every influence stores
 
 ## Muscle behavior
 
-`MuscleGroupController` coordinates multiple `MuscleUnit` instances. Each group has its own smoothed activation, role (agonist, antagonist or stabilizer), and weighted member list. Separate agonist and antagonist groups can receive different targets; stabilizer groups can remain partially active while movement occurs. Overlapping group contributions are added and clamped to the muscle's 0–1 activation range. Call `prepare` when the muscle count changes, then `step` at the fixed simulation interval; the controller's frame step uses pre-sized scratch buffers. MuscleUnit calculates active and passive tension between two attachment points. MuscleGeometry provides a cheap shape target for a muscle mesh, including configurable volume-preservation strength and a maximum bulge limit. The geometry helper does not itself simulate muscle fibers or solve a complete anatomical body. MuscleAttachment binds each muscle endpoint to a bone-local point and converts muscle tension into forces and torques consumed by BoneSolver.
+`MuscleGroupController` coordinates multiple `MuscleUnit` instances. Each group has its own smoothed activation, role (agonist, antagonist or stabilizer), and weighted member list. Separate agonist and antagonist groups can receive different targets; stabilizer groups can remain partially active while movement occurs. Overlapping group contributions are added and clamped to the muscle's 0–1 activation range. Call `prepare` when the muscle count changes, then `step` at the fixed simulation interval; the controller's frame step uses pre-sized scratch buffers. MuscleUnit calculates active and passive tension between two attachment points. MuscleGeometry provides a cheap shape target for a muscle mesh, including configurable volume-preservation strength and a maximum bulge limit. The geometry helper does not itself simulate muscle fibers or solve a complete anatomical body. MuscleAttachment binds each muscle endpoint to a bone-local point and converts muscle tension into forces and torques consumed by BoneSolver. `MuscleRig` owns the muscle units and actuator mapping, advances the group controller, derives attachment-point velocities from each body's linear and angular velocity, then stages and applies the force pairs. Call `rig.prepare(solver)` after sizing the bodies, muscles and actuators; on each fixed step call `rig.step(solver, dt)` before `solver.step(dt)`. Keep muscle/actuator/body counts unchanged after preparation, or prepare again outside the simulation loop.
 
 ## Build and test
 
@@ -51,10 +51,10 @@ Run CMake configure, build the project, then run CTest with output-on-failure. T
 ## Next architecture steps
 
 1. Add hinge and ball-socket joint modes, angular limits and joint motors.
-2. Add antagonistic muscle groups and joint stabilization.
+2. Add explicit antagonist coordination and joint-stabilization control.
 3. Add optional shape-matching and volume-preserving clusters for selected high-detail areas.
 4. Add collision detection and contact solving, then optional self-collision.
-5. Add a small Android demo scene to visualize bone, muscle and tissue behavior.
+5. Build a small Android demo app and APK workflow to visualize bone, muscle and tissue behavior.
 6. Profile representative rigs and benchmark on the Galaxy A05 before setting performance claims.
 
 Performance targets must be verified on actual devices; no Galaxy A05 benchmark has been run yet.
