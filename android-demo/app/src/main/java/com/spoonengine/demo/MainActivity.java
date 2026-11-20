@@ -50,6 +50,13 @@ public final class MainActivity extends Activity {
         status.setTextSize(13);
         root.addView(status);
 
+        Button glTest = new Button(this);
+        glTest.setText("RUN OPENGL-ONLY TEST");
+        glTest.setAllCaps(false);
+        root.addView(glTest, fullWidth());
+        glTest.setOnClickListener(v ->
+                startActivity(new Intent(this, GlProbeActivity.class)));
+
         Button refresh = new Button(this);
         refresh.setText("REFRESH CRASH REPORT");
         refresh.setAllCaps(false);
